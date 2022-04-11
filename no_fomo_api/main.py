@@ -11,3 +11,5 @@ if __name__ == '__main__':
     api.add_resource(Instagram, '/instagram')
     app.run(debug=True)
 
+api.add_resource(Login, '/login')
+
