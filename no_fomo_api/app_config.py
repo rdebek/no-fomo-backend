@@ -4,6 +4,8 @@ from flask_sqlalchemy import SQLAlchemy
 from os import environ
 
 AUTH_TOKEN = environ.get('AUTH_TOKEN')
+INSTA_LOGIN = environ.get('INSTA_LOGIN')
+INSTA_PASSWORD = environ.get('INSTA_PASSWORD')
 
 app = Flask(__name__)
 api = Api(app)
