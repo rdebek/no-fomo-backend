@@ -147,9 +147,9 @@ class Register(Resource):
             db.session.commit()
         except IntegrityError as e:
             print(e)
-            return Response('Email is already in use.', status=400)
+            return Response({'msg': 'Email is already in use.', 'error': '1'}, status=400)
 
-        return Response(status=200)
+        return Response({'msg': 'Account created successfully.'}, status=200)
 
     @staticmethod
     def generate_token():
