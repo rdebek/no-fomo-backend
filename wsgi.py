@@ -77,10 +77,10 @@ class EmailVerfication(Resource):
         token = request.form.get('token')
 
         if token:
-            return self.verify_token(receiver_address, token)
+            return Response(json.dumps({'verify': self.verify_token(receiver_address, token)}), status=200)
 
         self.send_mail(receiver_address)
-        return {'email': 'sent'}
+        return Response(json.dumps({'msg': 'Verification mail sent.'}), status=200)
 
     @staticmethod
     def verify_token(receiver_address, token):
