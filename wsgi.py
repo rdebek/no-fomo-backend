@@ -6,6 +6,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from os import environ
 from random import randint
+import json
 
 import requests
 from flask import request, Response, Flask
@@ -147,9 +148,9 @@ class Register(Resource):
             db.session.commit()
         except IntegrityError as e:
             print(e)
-            return Response({'msg': 'Email is already in use.', 'error': '1'}, status=400)
+            return Response(json.dumps({'msg': 'Email is already in use.', 'error': '1'}), status=400)
 
-        return Response({'msg': 'Account created successfully.'}, status=200)
+        return Response(json.dumps({'msg': 'Account created successfully.'}), status=200)
 
     @staticmethod
     def generate_token():
