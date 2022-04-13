@@ -129,7 +129,7 @@ class Login(Resource):
         email = request.form['email']
         password = Register.get_md5_hash(request.form['password'])
 
-        return User.query.filter_by(email=email).first().password == password
+        return Response(json.dumps({'login': User.query.filter_by(email=email).first().password == password}))
 
 
 class Register(Resource):
