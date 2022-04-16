@@ -24,6 +24,7 @@ app = Flask(__name__)
 api = Api(app)
 app.config['SQLALCHEMY_DATABASE_URI'] = environ.get('DATABASE_URI')
 db = SQLAlchemy(app)
+insta_api_client = None
 
 
 class User(db.Model):
@@ -39,6 +40,7 @@ class User(db.Model):
 class InstagramApi():
     def __init__(self):
         self.session = requests.Session()
+        self.logged_in = False
 
     def login(self):
         link = 'https://www.instagram.com/accounts/login/'
@@ -61,6 +63,7 @@ class InstagramApi():
             "referer": "https://www.instagram.com/accounts/login/",
             "x-csrftoken": csrf
         })
+        self.logged_in = True
 
     def get_places_info(self, lat, long):
         return self.session.get(f'https://www.instagram.com/location_search/?latitude={lat}+&longitude={long}').json()
@@ -109,15 +112,21 @@ class EmailVerfication(Resource):
 
 class Instagram(Resource):
     def post(self):
+        global insta_api_client
         auth_token = request.form.get('auth')
         if not auth_token or auth_token != AUTH_TOKEN:
             return Response(status=400)
 
-        insta_api = InstagramApi()
-        insta_api.login()
+        if not insta_api_client:
+            print('creating insta client')
+            insta_api_client = InstagramApi()
+
+        if not insta_api_client.logged_in:
+            print('logging in')
+            insta_api_client.login()
 
         lat, long = request.form['lat'], request.form['long']
-        return insta_api.get_places_info(lat, long)
+        return insta_api_client.get_places_info(lat, long)
 
 
 class Login(Resource):
