@@ -7,6 +7,8 @@ from email.mime.text import MIMEText
 from os import environ
 from random import randint
 import json
+import tweepy
+from typing import List
 
 import requests
 from flask import request, Response, Flask
@@ -19,6 +21,7 @@ INSTA_LOGIN = environ.get('INSTA_LOGIN')
 INSTA_PASSWORD = environ.get('INSTA_PASSWORD')
 SENDER_ADDRESS = environ.get('SENDER_EMAIL')
 SENDER_PASS = environ.get('EMAIL_PASSWORD')
+BEARER_TOKEN = environ.get('BEARER_TOKEN')
 
 app = Flask(__name__)
 api = Api(app)
@@ -37,7 +40,40 @@ class User(db.Model):
         return f'id: {self.id}, email: {self.email}, password: {self.password}, token: {self.token}'
 
 
-class InstagramApi():
+class TwitterApi:
+    def __init__(self):
+        auth = tweepy.OAuth2BearerHandler(BEARER_TOKEN)
+        self.api_v1_client = tweepy.API(auth)
+        self.api_v2_client = tweepy.Client(BEARER_TOKEN)
+
+    def get_available_places(self) -> dict:
+        available_places = self.api_v1_client.available_trends()
+        available_places.sort(key=self.sort_by_name)
+        return available_places
+
+    def get_trends_for_place(self, woeid: int) -> List:
+        return_arr = []
+        trends_arr = self.api_v1_client.get_place_trends(woeid)[0]['trends']
+        for trend in trends_arr:
+            if trend['tweet_volume']:
+                return_arr.append(trend)
+        return_arr.sort(key=self.sort_by_tweet_volume, reverse=True)
+        return return_arr
+
+    def get_tweet_count(self, query: str) -> dict:
+        res = self.api_v2_client.get_recent_tweets_count(query)
+        return {'data': res.data, 'total_count': res.meta['total_tweet_count']}
+
+    @staticmethod
+    def sort_by_tweet_volume(trend):
+        return trend['tweet_volume']
+
+    @staticmethod
+    def sort_by_name(place: dict) -> str:
+        return place['name']
+
+
+class InstagramApi:
     def __init__(self):
         self.session = requests.Session()
         self.logged_in = False
