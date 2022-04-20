@@ -73,6 +73,23 @@ class TwitterApi:
         return place['name']
 
 
+class Twitter(Resource):
+    def post(self):
+        auth_token = request.form.get('auth')
+        if not auth_token or auth_token != AUTH_TOKEN:
+            return Response(status=400)
+        twitter_api = TwitterApi()
+        mode = request.form['mode']
+        if mode == 'places':
+            return Response(json.dumps(twitter_api.get_available_places()), status=200)
+        elif mode == 'trends':
+            woeid = int(request.form['woeid'])
+            return Response(json.dumps(twitter_api.get_trends_for_place(woeid)), status=200)
+        elif mode == 'counts':
+            query = request.form['query']
+            return Response(json.dumps(twitter_api.get_tweet_count(query)), status=200)
+
+
 class InstagramApi:
     def __init__(self):
         self.session = requests.Session()
@@ -103,6 +120,25 @@ class InstagramApi:
 
     def get_places_info(self, lat, long):
         return self.session.get(f'https://www.instagram.com/location_search/?latitude={lat}+&longitude={long}').json()
+
+
+class Instagram(Resource):
+    def post(self):
+        global insta_api_client
+        auth_token = request.form.get('auth')
+        if not auth_token or auth_token != AUTH_TOKEN:
+            return Response(status=400)
+
+        if not insta_api_client:
+            print('creating insta client')
+            insta_api_client = InstagramApi()
+
+        if not insta_api_client.logged_in:
+            print('logging in')
+            insta_api_client.login()
+
+        lat, long = request.form['lat'], request.form['long']
+        return insta_api_client.get_places_info(lat, long)
 
 
 class EmailVerfication(Resource):
@@ -144,25 +180,6 @@ class EmailVerfication(Resource):
         text = message.as_string()
         session.sendmail(SENDER_ADDRESS, receiver_address, text)
         session.quit()
-
-
-class Instagram(Resource):
-    def post(self):
-        global insta_api_client
-        auth_token = request.form.get('auth')
-        if not auth_token or auth_token != AUTH_TOKEN:
-            return Response(status=400)
-
-        if not insta_api_client:
-            print('creating insta client')
-            insta_api_client = InstagramApi()
-
-        if not insta_api_client.logged_in:
-            print('logging in')
-            insta_api_client.login()
-
-        lat, long = request.form['lat'], request.form['long']
-        return insta_api_client.get_places_info(lat, long)
 
 
 class Login(Resource):
@@ -210,6 +227,7 @@ api.add_resource(Register, '/register')
 api.add_resource(EmailVerfication, '/email')
 api.add_resource(Login, '/login')
 api.add_resource(Instagram, '/instagram')
+api.add_resource(Twitter, '/twitter')
 
 if __name__ == '__main__':
     app.run(debug=True)
