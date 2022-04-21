@@ -61,7 +61,7 @@ class TwitterApi:
         return return_arr
 
     def get_tweet_count(self, query: str) -> dict:
-        res = self.api_v2_client.get_recent_tweets_count(query)
+        res = self.api_v2_client.get_recent_tweets_count(query, granularity='day')
         return {'data': res.data, 'total_count': res.meta['total_tweet_count']}
 
     @staticmethod
