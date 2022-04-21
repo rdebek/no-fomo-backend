@@ -60,8 +60,8 @@ class TwitterApi:
         return_arr.sort(key=self.sort_by_tweet_volume, reverse=True)
         return return_arr
 
-    def get_tweet_count(self, query: str) -> dict:
-        res = self.api_v2_client.get_recent_tweets_count(query, granularity='day')
+    def get_tweet_count(self, query: str, granularity: str) -> dict:
+        res = self.api_v2_client.get_recent_tweets_count(query, granularity=granularity)
         return {'data': res.data, 'total_count': res.meta['total_tweet_count']}
 
     @staticmethod
@@ -87,7 +87,8 @@ class Twitter(Resource):
             return Response(json.dumps(twitter_api.get_trends_for_place(woeid)), status=200)
         elif mode == 'counts':
             query = request.form['query']
-            return Response(json.dumps(twitter_api.get_tweet_count(query)), status=200)
+            granularity = request.form['granularity']
+            return Response(json.dumps(twitter_api.get_tweet_count(query, granularity)), status=200)
 
 
 class InstagramApi:
