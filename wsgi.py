@@ -75,7 +75,7 @@ class Trends(Resource):
             return Response(status=400)
         email = request.args.get('email')
         trends = Trend.query.filter_by(email=email).all()
-        return Response(json.dumps({'data': [record.trend for record in trends]}))
+        return Response(json.dumps({'data': [{'name': record.trend, 'percentage': record.percentage, '7_days_data': TwitterApi().get_tweet_count(record.trend, 'day')} for record in trends]}))
 
     def post(self):
         auth_token = request.form.get('auth')
