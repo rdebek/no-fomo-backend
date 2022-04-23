@@ -16,6 +16,15 @@ from flask_restful import Api, Resource
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import IntegrityError
 
+from exponent_server_sdk import (
+    DeviceNotRegisteredError,
+    PushClient,
+    PushMessage,
+    PushServerError,
+    PushTicketError,
+)
+from requests.exceptions import ConnectionError, HTTPError
+
 AUTH_TOKEN = environ.get('AUTH_TOKEN')
 INSTA_LOGIN = environ.get('INSTA_LOGIN')
 INSTA_PASSWORD = environ.get('INSTA_PASSWORD')
@@ -30,6 +39,14 @@ db = SQLAlchemy(app)
 insta_api_client = None
 
 
+# def send_push_message(msg):
+#     PushClient().publish(msg)
+#
+#
+# msg = PushMessage('ExponentPushToken[Nst5q0GbLgeY18DOiNuUkJ]', title='place', body='holder',
+#                   display_in_foreground=True, sound='default')
+# send_push_message(msg)
+
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(50), nullable=False, unique=True)
@@ -38,6 +55,44 @@ class User(db.Model):
 
     def __repr__(self):
         return f'id: {self.id}, email: {self.email}, password: {self.password}, token: {self.token}'
+
+
+class Trend(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(50), nullable=False)
+    trend = db.Column(db.String(50), nullable=False)
+    percentage = db.Column(db.String(10), nullable=False)
+    token = db.Column(db.String(50), nullable=False)
+
+    def __repr__(self):
+        return f'id: {self.id}, email: {self.email}, trend: {self.trend}, percentage: {self.percentage}, token: {self.token}'
+
+
+class Trends(Resource):
+    def get(self):
+        auth_token = request.args.get('auth')
+        if not auth_token or auth_token != AUTH_TOKEN:
+            return Response(status=400)
+        email = request.args.get('email')
+        trends = Trend.query.filter_by(email=email).all()
+        return Response(json.dumps({'data': [record.trend for record in trends]}))
+
+    def post(self):
+        auth_token = request.form.get('auth')
+        if not auth_token or auth_token != AUTH_TOKEN:
+            return Response(status=400)
+        email = request.form['email']
+        trend = request.form['trend']
+        percentage = request.form['percentage']
+        token = request.form['token']
+        trend = Trend(email=email, trend=trend, percentage=percentage, token=token)
+        try:
+            db.session.add(trend)
+            db.session.commit()
+        except:
+            print('error')
+            return Response(json.dumps({'status': 'error'}), status=400)
+        return Response(json.dumps({'status': 'ok'}), status=200)
 
 
 class TwitterApi:
@@ -229,6 +284,7 @@ api.add_resource(EmailVerfication, '/email')
 api.add_resource(Login, '/login')
 api.add_resource(Instagram, '/instagram')
 api.add_resource(Twitter, '/twitter')
+api.add_resource(Trends, '/trends')
 
 if __name__ == '__main__':
     app.run(debug=True)
