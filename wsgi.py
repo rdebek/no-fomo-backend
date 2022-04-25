@@ -97,7 +97,7 @@ class Trends(Resource):
             return Response(json.dumps({'status': 'ok'}), status=200)
         elif mode == 'remove':
             try:
-                Trend.query.filter_by(email=email, trend=trend_name).first().delete()
+                Trend.query.filter_by(email=email, trend=trend_name).delete()
                 db.session.commit()
             except Exception as e:
                 print(e)
