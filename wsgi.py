@@ -83,22 +83,24 @@ class Trends(Resource):
             return Response(status=400)
         mode = request.form['mode']
         email = request.form['email']
-        trend = request.form['trend']
+        trend_name = request.form['trend']
         if mode == 'add':
             percentage = request.form['percentage']
             token = request.form['token']
-            trend = Trend(email=email, trend=trend, percentage=percentage, token=token)
+            trend = Trend(email=email, trend=trend_name, percentage=percentage, token=token)
             try:
                 db.session.add(trend)
                 db.session.commit()
-            except:
+            except Exception as e:
+                print(e)
                 return Response(json.dumps({'status': 'error'}), status=400)
             return Response(json.dumps({'status': 'ok'}), status=200)
         elif mode == 'remove':
             try:
-                Trend.query.filter_by(email=email, trend=trend).first().delete()
+                Trend.query.filter_by(email=email, trend=trend_name).first().delete()
                 db.session.commit()
-            except:
+            except Exception as e:
+                print(e)
                 return Response(json.dumps({'status': 'error'}), status=400)
             return Response(json.dumps({'status': 'ok'}))
 
