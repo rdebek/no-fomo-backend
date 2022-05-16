@@ -300,6 +300,7 @@ def send_push_message(trend: Trend, percentage_reached: float):
 
 def check_trends_status():
     interval = 3600
+    threading.Timer(interval, check_trends_status).start()
     trends = Trend.query.all()
     for trend in trends:
         if trend.token:
@@ -312,7 +313,6 @@ def check_trends_status():
                 db.session.add(trend)
 
     db.session.commit()
-    threading.Timer(interval, check_trends_status).start()
 
 
 def compute_percent(avg, last_count):
