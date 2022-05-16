@@ -326,4 +326,4 @@ def compute_percent(avg, last_count):
 check_trends_status()
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=False)
