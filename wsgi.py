@@ -328,6 +328,6 @@ def compute_percent(avg, last_count):
 check_trends_status()
 
 if __name__ == '__main__':
-    sched.add_job(check_trends_status, 'interval', minutes=2)
+    sched.add_job(check_trends_status, 'interval', hours=1)
     sched.start()
     app.run(debug=False)
