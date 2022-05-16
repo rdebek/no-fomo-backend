@@ -310,8 +310,8 @@ def check_trends_status():
                 send_push_message(trend, current_percent)
                 trend.token = ''
                 db.session.add(trend)
-                db.session.commit()
 
+    db.session.commit()
     threading.Timer(interval, check_trends_status).start()
 
 
