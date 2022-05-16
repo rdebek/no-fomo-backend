@@ -330,4 +330,4 @@ check_trends_status()
 if __name__ == '__main__':
     sched.add_job(check_trends_status, 'interval', hours=1)
     sched.start()
-    app.run(debug=False)
+    app.run(debug=False, use_reloader=False)
