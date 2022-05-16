@@ -1,29 +1,27 @@
+import datetime
 import hashlib
+import json
 import re
 import smtplib
+import threading
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from os import environ
 from random import randint
-import json
-import tweepy
+from statistics import mean
 from typing import List
 
 import requests
-from flask import request, Response, Flask
+import tweepy
+from exponent_server_sdk import (
+    PushClient,
+    PushMessage,
+)
+from flask import Flask, request, Response
 from flask_restful import Api, Resource
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import IntegrityError
-
-from exponent_server_sdk import (
-    DeviceNotRegisteredError,
-    PushClient,
-    PushMessage,
-    PushServerError,
-    PushTicketError,
-)
-from requests.exceptions import ConnectionError, HTTPError
 
 AUTH_TOKEN = environ.get('AUTH_TOKEN')
 INSTA_LOGIN = environ.get('INSTA_LOGIN')
@@ -38,14 +36,6 @@ app.config['SQLALCHEMY_DATABASE_URI'] = environ.get('DATABASE_URI')
 db = SQLAlchemy(app)
 insta_api_client = None
 
-
-# def send_push_message(msg):
-#     PushClient().publish(msg)
-#
-#
-# msg = PushMessage('ExponentPushToken[Nst5q0GbLgeY18DOiNuUkJ]', title='place', body='holder',
-#                   display_in_foreground=True, sound='default')
-# send_push_message(msg)
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -65,7 +55,8 @@ class Trend(db.Model):
     token = db.Column(db.String(50), nullable=False)
 
     def __repr__(self):
-        return f'id: {self.id}, email: {self.email}, trend: {self.trend}, percentage: {self.percentage}, token: {self.token}'
+        return f'id: {self.id}, email: {self.email}, trend: {self.trend}, percentage: {self.percentage}, ' \
+               f'token: {self.token}'
 
 
 class Trends(Resource):
@@ -75,7 +66,9 @@ class Trends(Resource):
             return Response(status=400)
         email = request.args.get('email')
         trends = Trend.query.filter_by(email=email).all()
-        return Response(json.dumps({'data': [{'name': record.trend, 'percentage': record.percentage, '7_days_data': TwitterApi().get_tweet_count(record.trend, 'day')} for record in trends]}))
+        return Response(json.dumps({'data': [{'name': record.trend, 'percentage': record.percentage,
+                                              '7_days_data': TwitterApi().get_tweet_count(record.trend, 'day')} for
+                                             record in trends]}))
 
     def post(self):
         auth_token = request.form.get('auth')
@@ -177,7 +170,8 @@ class InstagramApi:
         r = self.session.get(link)
         csrf = re.findall(r"csrf_token\":\"(.*?)\"", r.text)[0]
         self.session.post(login_url, data=payload, headers={
-            "user-agent": "Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3865.120 Safari/537.36",
+            "user-agent": "Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3865.120 "
+                          "Safari/537.36",
             "x-requested-with": "XMLHttpRequest",
             "referer": "https://www.instagram.com/accounts/login/",
             "x-csrftoken": csrf
@@ -295,6 +289,41 @@ api.add_resource(Login, '/login')
 api.add_resource(Instagram, '/instagram')
 api.add_resource(Twitter, '/twitter')
 api.add_resource(Trends, '/trends')
+
+
+def send_push_message(trend: Trend, percentage_reached: float):
+    msg = PushMessage(trend.token, title=f'Threshold for trend "{trend.trend}" reached!',
+                      body=f'Current percentage: {round(percentage_reached, 2)}%\nAwaited: {trend.percentage}%',
+                      display_in_foreground=True, sound='default')
+    PushClient().publish(msg)
+
+
+def check_trends_status():
+    interval = 3600
+    trends = Trend.query.all()
+    for trend in trends:
+        if trend.token:
+            data = TwitterApi().get_tweet_count(trend.trend, 'day')
+            avg = mean([data_point['tweet_count'] for data_point in data['data']][:-1])
+            current_percent = compute_percent(avg, data['data'][-1]['tweet_count'])
+            if 0 > int(trend.percentage) > current_percent or 0 < int(trend.percentage) < current_percent:
+                send_push_message(trend, current_percent)
+                trend.token = ''
+                db.session.add(trend)
+                db.session.commit()
+
+    threading.Timer(interval, check_trends_status).start()
+
+
+def compute_percent(avg, last_count):
+    try:
+        percent = ((last_count - avg) / avg) * 100
+    except ZeroDivisionError:
+        return 0
+    return percent
+
+
+check_trends_status()
 
 if __name__ == '__main__':
     app.run(debug=True)
