@@ -3,7 +3,6 @@ import hashlib
 import json
 import re
 import smtplib
-import threading
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -14,6 +13,7 @@ from typing import List
 
 import requests
 import tweepy
+from apscheduler.schedulers.background import BackgroundScheduler
 from exponent_server_sdk import (
     PushClient,
     PushMessage,
@@ -35,6 +35,7 @@ api = Api(app)
 app.config['SQLALCHEMY_DATABASE_URI'] = environ.get('DATABASE_URI')
 db = SQLAlchemy(app)
 insta_api_client = None
+sched = BackgroundScheduler()
 
 
 class User(db.Model):
@@ -299,18 +300,19 @@ def send_push_message(trend: Trend, percentage_reached: float):
 
 
 def check_trends_status():
-    interval = 3600
-    threading.Timer(interval, check_trends_status).start()
     trends = Trend.query.all()
+
     for trend in trends:
-        if trend.token:
-            data = TwitterApi().get_tweet_count(trend.trend, 'day')
-            avg = mean([data_point['tweet_count'] for data_point in data['data']][:-1])
-            current_percent = compute_percent(avg, data['data'][-1]['tweet_count'])
-            if 0 > int(trend.percentage) > current_percent or 0 < int(trend.percentage) < current_percent:
-                send_push_message(trend, current_percent)
-                trend.token = ''
-                db.session.add(trend)
+        if not trend.token:
+            continue
+
+        data = TwitterApi().get_tweet_count(trend.trend, 'day')
+        avg = mean([data_point['tweet_count'] for data_point in data['data']][:-1])
+        current_percent = compute_percent(avg, data['data'][-1]['tweet_count'])
+        if 0 > int(trend.percentage) > current_percent or 0 < int(trend.percentage) < current_percent:
+            send_push_message(trend, current_percent)
+            trend.token = ''
+            db.session.add(trend)
 
     db.session.commit()
 
@@ -326,4 +328,6 @@ def compute_percent(avg, last_count):
 check_trends_status()
 
 if __name__ == '__main__':
+    sched.add_job(check_trends_status, 'interval', minutes=2)
+    sched.start()
     app.run(debug=False)
